@@ -31,6 +31,13 @@ RUN dnf install -y --allowerasing \
       perl \
     && dnf clean all
 
+# ── GCC 12 toolset ───────────────────────────────────────────────────────────
+# GCC 8 (el8 default) lacks C++20 stdlib headers (e.g. <version>) that
+# webrtc-sys / abseil require.  gcc-toolset-12 ships GCC 12 + its libstdc++
+# under /opt/rh/gcc-toolset-12; we keep clang as the compiler but tell it to
+# use GCC 12's headers and runtime via --gcc-toolchain.
+RUN dnf install -y gcc-toolset-12 && dnf clean all
+
 # ── Rust (installed for a non-root build user) ────────────────────────────────
 # Running cargo as root works but is discouraged; a dedicated user avoids
 # ownership headaches when copying artefacts out later.
@@ -53,10 +60,12 @@ RUN git clone --depth 1 --branch "${ZED_REF}" \
 WORKDIR /home/builder/zed
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-# Rocky Linux 8 ships GCC 8 which does not recognise -std=c++20 (webrtc-sys
-# requires it). Clang (installed above) supports C++20 on el8, so point the
-# cc-rs / cmake build machinery at clang/clang++ instead.
-ENV CC=clang CXX=clang++
+# Use clang/clang++ but backed by GCC 12's libstdc++ (from gcc-toolset-12).
+# --gcc-toolchain makes clang++ pick up GCC 12's <version> and other C++20
+# headers instead of the bare GCC 8 ones that ship with el8.
+ENV GCC12=/opt/rh/gcc-toolset-12/root/usr
+ENV CC="clang --gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
+ENV CXX="clang++ --gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
 
 # -p zed        → only the editor binary (skips other workspace members)
 # RELEASE=1 tells some build scripts to enable optimisations
