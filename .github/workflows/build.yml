@@ -1,0 +1,87 @@
+name: Build Zed for RHEL 8
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      zed_ref:
+        description: 'Zed git ref (branch, tag, or commit SHA) to build'
+        required: false
+        default: 'main'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # required to create/upload GitHub releases
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Determine the Zed source ref to build.
+      # - workflow_dispatch: use the user-supplied input (default: main)
+      # - tag push:          use 'main' unless you want the tag to match a Zed tag
+      - name: Resolve Zed ref
+        id: vars
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "zed_ref=${{ github.event.inputs.zed_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "zed_ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Buildx is required to use the GHA layer cache (type=gha).
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the image.  'load: true' stores it in the local daemon so we can
+      # run a container and copy binaries out in the next step.
+      # Docker layer caching dramatically shortens re-builds (Rust dep layers
+      # are very large and barely change between runs).
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: zed-rocky8-builder:latest
+          build-args: |
+            ZED_REF=${{ steps.vars.outputs.zed_ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Spin up a stopped container to copy the artefacts directory out.
+      - name: Extract binaries from image
+        run: |
+          mkdir -p artefacts
+          cid=$(docker create zed-rocky8-builder:latest)
+          docker cp "${cid}:/home/builder/artefacts/." ./artefacts/
+          docker rm "${cid}"
+          echo "── Extracted files ──────────────────────────────────"
+          ls -lh artefacts/
+
+      - name: Package as tar.gz
+        run: |
+          tar -czf zed-rhel8-x86_64.tar.gz -C artefacts .
+          echo "Archive: $(du -sh zed-rhel8-x86_64.tar.gz | cut -f1)"
+
+      # Always upload as a workflow artifact (accessible from the Actions run page).
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zed-rhel8-x86_64
+          path: zed-rhel8-x86_64.tar.gz
+          retention-days: 30
+
+      # Only create a GitHub Release when the pipeline was triggered by a tag push.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: zed-rhel8-x86_64.tar.gz
+          generate_release_notes: true

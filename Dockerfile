@@ -16,9 +16,15 @@ RUN dnf install -y --allowerasing \
       curl git cmake clang pkg-config \
       alsa-lib-devel wayland-devel libxkbcommon-devel \
       fontconfig-devel libzstd-devel openssl-devel \
+      glib2-devel \
       vulkan-loader-devel \
       # Needed by Zed's GPU / window system layer
       libX11-devel libXcursor-devel libXrandr-devel libXi-devel \
+      # X11 extension headers required by webrtc-sys desktop_capturer
+      libXdamage-devel libXcomposite-devel libXfixes-devel \
+      libXext-devel libXtst-devel \
+      # PipeWire screen-capture support (WEBRTC_USE_PIPEWIRE)
+      pipewire-devel \
       # el8 needs these explicitly; el9 pulls them in transitively
       gcc gcc-c++ make \
       # Needed by some Zed crates
@@ -47,9 +53,14 @@ RUN git clone --depth 1 --branch "${ZED_REF}" \
 WORKDIR /home/builder/zed
 
 # ── Build ─────────────────────────────────────────────────────────────────────
+# Rocky Linux 8 ships GCC 8 which does not recognise -std=c++20 (webrtc-sys
+# requires it). Clang (installed above) supports C++20 on el8, so point the
+# cc-rs / cmake build machinery at clang/clang++ instead.
+ENV CC=clang CXX=clang++
+
 # -p zed        → only the editor binary (skips other workspace members)
 # RELEASE=1 tells some build scripts to enable optimisations
-RUN cargo build --release -p zed 2>&1 | tee /tmp/zed-build.log
+RUN cargo build --release -p zed 2>&1 | tee /tmp/zed-build.log; exit "${PIPESTATUS[0]}"
 
 # ── Collect artefacts into a single, easy-to-copy directory ──────────────────
 RUN mkdir -p /home/builder/artefacts \
