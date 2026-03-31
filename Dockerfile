@@ -14,7 +14,7 @@ RUN dnf install -y 'dnf-command(config-manager)' \
 # Note: vulkan-loader-devel is in epel on el8, not BaseOS
 RUN dnf install -y --allowerasing \
       curl git cmake clang pkg-config \
-      alsa-lib-devel wayland-devel libxkbcommon-devel \
+      alsa-lib-devel wayland-devel libxkbcommon-devel libxkbcommon-x11 \
       fontconfig-devel libzstd-devel openssl-devel \
       glib2-devel \
       vulkan-loader-devel \
