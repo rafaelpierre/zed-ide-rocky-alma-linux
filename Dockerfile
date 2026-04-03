@@ -42,7 +42,7 @@ RUN dnf install -y gcc-toolset-12 && dnf clean all
 # Rocky 8's libxkbcommon-devel does not ship libxkbcommon-x11.so (the
 # unversioned symlink the linker needs).  libxkbcommon-x11 provides the
 # runtime (.so.0) but no -devel counterpart on el8, so create the symlink.
-RUN ln -sf libxkbcommon-x11.so.0 /usr/lib64/libxkbcommon-x11.so
+RUN ln -sf /usr/lib64/libxkbcommon-x11.so.0 /usr/lib64/libxkbcommon-x11.so
 
 # ── Rust (installed for a non-root build user) ────────────────────────────────
 # Running cargo as root works but is discouraged; a dedicated user avoids
