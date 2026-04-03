@@ -70,15 +70,14 @@ WORKDIR /home/builder/zed
 # --gcc-toolchain makes clang++ pick up GCC 12's <version> and other C++20
 # headers instead of the bare GCC 8 ones that ship with el8.
 ENV GCC12=/opt/rh/gcc-toolset-12/root/usr
-ENV CC="clang --gcc-toolchain=${GCC12}"
-ENV CXX="clang++ --gcc-toolchain=${GCC12}"
+ENV CC="clang"
+ENV CXX="clang++"
 ENV CFLAGS="--gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
 ENV CXXFLAGS="--gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
 ENV LDFLAGS="-L/opt/rh/gcc-toolset-12/root/usr/lib64 -static-libstdc++ -static-libgcc"
+ENV RUSTFLAGS="-C link-arg=-static-libstdc++ -C link-arg=-static-libgcc -C link-arg=-Wl,--no-keep-memory -C codegen-units=4"
+ENV CARGO_BUILD_JOBS=2
 
-
-# -p zed        → only the editor binary (skips other workspace members)
-# RELEASE=1 tells some build scripts to enable optimisations
 RUN cargo build --release -p zed 2>&1 | tee /tmp/zed-build.log; exit "${PIPESTATUS[0]}"
 
 # ── Collect artefacts into a single, easy-to-copy directory ──────────────────
