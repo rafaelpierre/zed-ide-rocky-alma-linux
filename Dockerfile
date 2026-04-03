@@ -70,8 +70,12 @@ WORKDIR /home/builder/zed
 # --gcc-toolchain makes clang++ pick up GCC 12's <version> and other C++20
 # headers instead of the bare GCC 8 ones that ship with el8.
 ENV GCC12=/opt/rh/gcc-toolset-12/root/usr
-ENV CC="clang --gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
-ENV CXX="clang++ --gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
+ENV CC="clang --gcc-toolchain=${GCC12}"
+ENV CXX="clang++ --gcc-toolchain=${GCC12}"
+ENV CFLAGS="--gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
+ENV CXXFLAGS="--gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr"
+ENV LDFLAGS="-L/opt/rh/gcc-toolset-12/root/usr/lib64 -static-libstdc++ -static-libgcc"
+
 
 # -p zed        → only the editor binary (skips other workspace members)
 # RELEASE=1 tells some build scripts to enable optimisations
